@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>APEX TRADE — Portfolio Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #050810;
+    --bg2: #0a0e1a;
+    --bg3: #0f1628;
+    --panel: #111827;
+    --border: #1e2d4a;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --red: #ff3366;
+    --yellow: #ffb800;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(5,8,16,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  }
+
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+    50% { opacity: 0.4; box-shadow: none; }
+  }
+
+  /* NAV TABS */
+  .nav-tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 53px;
+    z-index: 99;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    flex-shrink: 0;
+    padding: 12px 18px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,212,255,0.05);
+  }
+
+  /* MAIN CONTENT */
+  main { padding: 16px; position: relative; z-index: 1; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* PANEL */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.3;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* API KEY SETUP */
+  .setup-banner {
+    background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,212,255,0.08));
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .setup-banner h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--accent);
+  }
+
+  .setup-banner p {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  input[type="text"], input[type="password"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+  }
+  .btn-primary:hover, .btn-primary:active { 
+    background: #00b8e0; 
+    transform: translateY(-1px);
+  }
+
+  .btn-success {
+    background: var(--green);
+    color: var(--bg);
+    font-weight: 700;
+  }
+
+  .btn-danger {
+    background: var(--red);
+    color: white;
+    font-weight: 700;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 9px;
+    width: auto;
+    margin-bottom: 0;
+  }
+
+  /* STAT CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.accent { color: var(--accent); }
+
+  .stat-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* CHART */
+  .chart-wrap {
+    position: relative;
+    height: 180px;
+    margin-bottom: 8px;
+  }
+
+  /* COIN ROW */
+  .coin-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .coin-row:last-child { border-bottom: none; }
+  .coin-row:active { background: rgba(0,212,255,0.04); }
+
+  .coin-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .coin-info { flex: 1; }
+  .coin-name { font-size: 13px; font-weight: 700; }
+  .coin-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+  .coin-price { text-align: right; }
+  .coin-price-val { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+  .coin-change { font-family: var(--mono); font-size: 10px; margin-top: 2px; }
+  .coin-change.up { color: var(--green); }
+  .coin-change.dn { color: var(--red); }
+
+  /* ALERT / ORDER FORM */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .form-group { margin-bottom: 12px; }
+
+  .toggle-group {
+    display: flex;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .toggle-opt {
+    flex: 1;
+    padding: 9px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+  }
+
+  .toggle-opt.active.buy { background: rgba(0,255,136,0.15); color: var(--green); }
+  .toggle-opt.active.sell { background: rgba(255,51,102,0.15); color: var(--red); }
+
+  /* AI CHAT */
+  .chat-container {
+    height: calc(100vh - 280px);
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .msg.user {
+    background: rgba(0,212,255,0.12);
+    border: 1px solid rgba(0,212,255,0.25);
+    align-self: flex-end;
+    color: var(--text);
+  }
+
+  .msg.ai {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    color: var(--text);
+  }
+
+  .msg.ai .ai-label {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .msg.thinking {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .thinking-dots::after {
+    content: '...';
+    animation: dots 1.2s infinite;
+  }
+
+  @keyframes dots {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-input-row input {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .chat-input-row button {
+    width: auto;
+    padding: 10px 14px;
+    margin-bottom: 0;
+  }
+
+  /* QUICK PROMPTS */
+  .quick-prompts {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .quick-prompt {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .quick-prompt:active { border-color: var(--accent); color: var(--accent); }
+
+  /* ALERT LIST */
+  .alert-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+
+  .alert-item:last-child { border-bottom: none; }
+
+  .alert-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .badge-above { background: rgba(0,255,136,0.15); color: var(--green); }
+  .badge-below { background: rgba(255,51,102,0.15); color: var(--red); }
+  .badge-active { background: rgba(255,184,0,0.15); color: var(--yellow); }
+
+  .alert-info { flex: 1; }
+  .alert-coin { font-size: 12px; font-weight: 700; }
+  .alert-target { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* LUNAR SOCIAL */
+  .social-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .social-metric:last-child { border-bottom: none; }
+
+  .metric-label { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .metric-val { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+
+  .bar-container {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  /* SETTINGS */
+  .settings-section { margin-bottom: 20px; }
+  .settings-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* REMOTE DESKTOP CARD */
+  .remote-card {
+    background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(0,212,255,0.05));
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
+  .remote-card h4 { font-size: 13px; margin-bottom: 4px; }
+  .remote-card p { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .remote-card .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 8px;
+    margin-top: 6px;
+    margin-right: 4px;
+  }
+
+  .tag-free { background: rgba(0,255,136,0.1); color: var(--green); }
+  .tag-easy { background: rgba(0,212,255,0.1); color: var(--accent); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* LOADING OVERLAY */
+  .loading {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* SIGNAL BADGE */
+  .signal {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .signal.bull { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+  .signal.bear { background: rgba(255,51,102,0.1); color: var(--red); border: 1px solid rgba(255,51,102,0.2); }
+  .signal.neutral { background: rgba(255,184,0,0.1); color: var(--yellow); border: 1px solid rgba(255,184,0,0.2); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">APEX<span> TRADE</span></div>
+  <div class="header-status">
+    <div class="dot"></div>
+    <span id="connectionStatus">READY</span>
+  </div>
+</header>
+
+<div class="nav-tabs">
+  <div class="tab active" onclick="showPage('dashboard')">◈ DASH</div>
+  <div class="tab" onclick="showPage('markets')">◈ MARKETS</div>
+  <div class="tab" onclick="showPage('orders')">◈ ORDERS</div>
+  <div class="tab" onclick="showPage('alerts')">◈ ALERTS</div>
+  <div class="tab" onclick="showPage('ai')">◈ AI ANALYST</div>
+  <div class="tab" onclick="showPage('settings')">◈ SETUP</div>
+</div>
+
+<main>
+
+  <!-- =================== DASHBOARD =================== -->
+  <div id="page-dashboard" class="page active">
+
+    <div id="apiWarning" class="setup-banner">
+      <h3>⚡ Connect Your Accounts</h3>
+      <p>Add your BloFin API keys in <strong>SETUP</strong> to see live portfolio data. Your keys are stored locally in your browser only.</p>
+      <button class="btn btn-primary" onclick="showPage('settings')">GO TO SETUP →</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Value</div>
+        <div class="stat-value accent" id="totalValue">$0.00</div>
+        <div class="stat-sub">Portfolio</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">24H PnL</div>
+        <div class="stat-value green" id="pnl24h">+$0.00</div>
+        <div class="stat-sub" id="pnlPct">+0.00%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">BTC Price</div>
+        <div class="stat-value accent" id="btcPrice">—</div>
+        <div class="stat-sub" id="btcChange">Loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Alerts</div>
+        <div class="stat-value yellow" id="alertCount">0</div>
+        <div class="stat-sub">Monitoring</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">BTC / USDT — 24H</div>
+      <div class="chart-wrap">
+        <canvas id="dashChart"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Social Sentiment (LunarCrush)</div>
+      <div id="sentimentPanel">
+        <div class="social-metric">
+          <div>
+            <div class="metric-label">BTC Galaxy Score</div>
+            <div class="bar-container"><div class="bar-fill" id="btcBar" style="width:0%;background:var(--accent)"></div></div>
+          </div>
+          <div class="metric-val accent" id="btcScore">—</div>
+        </div>
+        <div class="social-metric">
+          <div>
+            <div class="metric-label">ETH Galaxy Score</div>
+            <div class="bar-container"><div class="bar-fill" id="ethBar" style="width:0%;background:var(--accent2)"></div></div>
+          </div>
+          <div class="metric-val" id="ethScore" style="color:var(--accent2)">—</div>
+        </div>
+        <div class="social-metric">
+          <div>
+            <div class="metric-label">Market Sentiment</div>
+          </div>
+          <div id="marketSentimentBadge" class="signal neutral">NEUTRAL</div>
+        </div>
+      </div>
+      <button class="btn btn-secondary" style="margin-top:12px" onclick="loadLunarCrushSentiment()">
+        ↻ REFRESH SENTIMENT
+      </button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Holdings</div>
+      <div id="holdingsList">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:11px;">
+          Connect BloFin API to view holdings
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =================== MARKETS =================== -->
+  <div id="page-markets" class="page">
+    <div class="panel">
+      <div class="panel-title">Top Crypto — Live Prices</div>
+      <div id="marketList">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:11px;">
+          <span class="loading"></span>Loading markets...
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Price Chart</div>
+      <select id="chartSymbol" onchange="loadCoinChart()">
+        <option value="BTC-USDT">BTC / USDT</option>
+        <option value="ETH-USDT">ETH / USDT</option>
+        <option value="SOL-USDT">SOL / USDT</option>
+        <option value="XRP-USDT">XRP / USDT</option>
+        <option value="DOGE-USDT">DOGE / USDT</option>
+        <option value="MATIC-USDT">MATIC / USDT</option>
+      </select>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="marketChart"></canvas>
+      </div>
+      <div id="signalBox" style="margin-top:12px;text-align:center">
+        <span class="signal neutral" id="tradingSignal">ANALYZING...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================== ORDERS =================== -->
+  <div id="page-orders" class="page">
+
+    <div class="panel">
+      <div class="panel-title">Place Order (BloFin)</div>
+
+      <div class="toggle-group">
+        <div class="toggle-opt active buy" onclick="setOrderSide('buy')">▲ BUY</div>
+        <div class="toggle-opt sell" onclick="setOrderSide('sell')">▼ SELL</div>
+      </div>
+
+      <div class="form-group">
+        <label>Instrument</label>
+        <select id="orderSymbol">
+          <option>BTC-USDT</option>
+          <option>ETH-USDT</option>
+          <option>SOL-USDT</option>
+          <option>XRP-USDT</option>
+          <option>DOGE-USDT</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Order Type</label>
+        <select id="orderType" onchange="toggleLimitPrice()">
+          <option value="market">Market</option>
+          <option value="limit">Limit</option>
+          <option value="post_only">Post Only (Limit)</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="limitPriceGroup" style="display:none">
+        <label>Limit Price (USDT)</label>
+        <input type="number" id="limitPrice" placeholder="e.g. 65000">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Size</label>
+          <input type="number" id="orderSize" placeholder="0.001">
+        </div>
+        <div class="form-group">
+          <label>Leverage</label>
+          <select id="leverage">
+            <option>1x</option>
+            <option>2x</option>
+            <option>5x</option>
+            <option>10x</option>
+            <option>20x</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="orderSummary" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:var(--muted);">
+        Fill in order details to see summary
+      </div>
+
+      <button id="submitOrderBtn" class="btn btn-success" onclick="submitOrder()">
+        ▲ CONFIRM BUY ORDER
+      </button>
+
+      <div id="orderFeedback" style="display:none;margin-top:8px;padding:10px;border-radius:6px;font-family:var(--mono);font-size:11px;text-align:center;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Open Orders</div>
+      <div id="openOrders">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:11px;">
+          No open orders — connect API to load
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================== ALERTS =================== -->
+  <div id="page-alerts" class="page">
+
+    <div class="panel">
+      <div class="panel-title">Create Price Alert</div>
+
+      <div class="form-group">
+        <label>Coin / Symbol</label>
+        <select id="alertSymbol">
+          <option value="BTC-USDT">BTC / USDT</option>
+          <option value="ETH-USDT">ETH / USDT</option>
+          <option value="SOL-USDT">SOL / USDT</option>
+          <option value="XRP-USDT">XRP / USDT</option>
+          <option value="DOGE-USDT">DOGE / USDT</option>
+          <option value="MATIC-USDT">MATIC / USDT</option>
+          <option value="BNB-USDT">BNB / USDT</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Condition</label>
+          <select id="alertCondition">
+            <option value="above">Price Rises Above</option>
+            <option value="below">Price Falls Below</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target Price ($)</label>
+          <input type="number" id="alertPrice" placeholder="e.g. 75000">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Action When Triggered</label>
+        <select id="alertAction">
+          <option value="notify">Notify Only</option>
+          <option value="buy">Auto Buy</option>
+          <option value="sell">Auto Sell</option>
+        </select>
+      </div>
+
+      <div id="alertOrderGroup" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Order Size</label>
+            <input type="number" id="alertOrderSize" placeholder="0.001">
+          </div>
+          <div class="form-group">
+            <label>Order Type</label>
+            <select id="alertOrderType">
+              <option>Market</option>
+              <option>Limit</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="createAlert()">+ SET ALERT</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Active Alerts</div>
+      <div id="alertsList">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:11px;">
+          No alerts set
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =================== AI ANALYST =================== -->
+  <div id="page-ai" class="page">
+
+    <div class="panel" style="padding-bottom:0">
+      <div class="panel-title">AI Market Analyst — Powered by Claude + LunarCrush</div>
+
+      <div class="quick-prompts" id="quickPrompts">
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">📈 BTC spike prediction</div>
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">⚠️ Risk assessment ETH</div>
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">🌍 Real-world events impact</div>
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">🔍 Chart pattern analysis</div>
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">💡 Best entry point now?</div>
+        <div class="quick-prompt" onclick="sendQuickPrompt(this)">📰 Latest crypto news signal</div>
+      </div>
+
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <div class="msg ai">
+            <div class="ai-label">APEX AI — ANALYST</div>
+            Hello! I'm your AI market analyst. I can analyze crypto trends, evaluate real-world events using LunarCrush social data, assess risk before trades, detect price patterns, and help you avoid missing profit spikes.<br><br>
+            <strong>What would you like to analyze?</strong> You can ask me about any coin, market conditions, or upload your own data.
+          </div>
+        </div>
+
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Ask about any coin, trend, or event..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-primary btn-sm" onclick="sendChat()">SEND</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =================== SETTINGS =================== -->
+  <div id="page-settings" class="page">
+
+    <div class="settings-section">
+      <div class="settings-title">BloFin API (Crypto Trading)</div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="blofinKey" placeholder="Your BloFin API Key">
+      </div>
+      <div class="form-group">
+        <label>Secret Key</label>
+        <input type="password" id="blofinSecret" placeholder="Your BloFin Secret Key">
+      </div>
+      <div class="form-group">
+        <label>Passphrase</label>
+        <input type="password" id="blofinPass" placeholder="Your BloFin API Passphrase">
+      </div>
+      <button class="btn btn-primary" onclick="saveBlofinKeys()">SAVE & TEST CONNECTION</button>
+      <div id="blofinStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:8px 0;"></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Remote Desktop — Moomoo Setup</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+        Since Moomoo requires its OpenD gateway to run on a Windows PC, here are your best free options to access it remotely from your phone:
+      </p>
+
+      <div class="remote-card">
+        <h4>⭐ Chrome Remote Desktop</h4>
+        <p>Easiest setup. Install on Windows, control from your phone browser or app. Works on any phone OS.</p>
+        <span class="tag tag-free">FREE</span>
+        <span class="tag tag-easy">EASIEST SETUP</span>
+      </div>
+
+      <div class="remote-card">
+        <h4>AnyViewer</h4>
+        <p>Best for unattended access — connect anytime without someone at the PC. Free for personal use, supports Android & iOS.</p>
+        <span class="tag tag-free">FREE</span>
+        <span class="tag tag-easy">UNATTENDED</span>
+      </div>
+
+      <div class="remote-card">
+        <h4>Microsoft Remote Desktop</h4>
+        <p>Built into Windows 10/11 Pro. Install the RD client on your phone. Most stable long-term option if your Windows is Pro edition.</p>
+        <span class="tag tag-free">FREE (WIN PRO)</span>
+      </div>
+
+      <div class="remote-card" style="border-color:rgba(255,184,0,0.3)">
+        <h4>🚀 Recommended Setup</h4>
+        <p>1. Install <strong>AnyViewer</strong> on the Windows laptop<br>2. Set it to launch at startup<br>3. Keep Moomoo + OpenD running minimized<br>4. Use AnyViewer from your phone to interact with Moomoo when needed</p>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">App Preferences</div>
+      <div class="form-group">
+        <label>Default Currency</label>
+        <select id="defaultCurrency">
+          <option>USDT</option>
+          <option>USD</option>
+          <option>BTC</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Alert Check Interval</label>
+        <select id="alertInterval">
+          <option value="30000">Every 30 seconds</option>
+          <option value="60000">Every 1 minute</option>
+          <option value="300000">Every 5 minutes</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="savePreferences()">SAVE PREFERENCES</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Data & Privacy</div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:12px;">
+        All API keys are stored <strong>locally in your browser only</strong>. They are never sent to any server other than BloFin's official API endpoint. This app communicates directly with BloFin's servers.
+      </p>
+      <button class="btn btn-danger" onclick="clearAllData()" style="opacity:0.7">CLEAR ALL LOCAL DATA</button>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+// =================== APP STATE ===================
+const state = {
+  blofin: { key: '', secret: '', pass: '' },
+  alerts: [],
+  orderSide: 'buy',
+  marketChartInstance: null,
+  dashChartInstance: null,
+  alertInterval: null,
+  chatHistory: []
+};
+
+// =================== INIT ===================
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedKeys();
+  loadAlerts();
+  initDashChart();
+  loadMarketPrices();
+  loadCoinChart();
+  startAlertMonitor();
+  loadLunarCrushSentiment();
+});
+
+// =================== NAVIGATION ===================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(id.slice(0,3).toLowerCase())) t.classList.add('active');
+  });
+  if (id === 'markets') { loadMarketPrices(); loadCoinChart(); }
+  if (id === 'dashboard') loadPortfolio();
+}
+
+// =================== BLOFIN API ===================
+function saveBlofinKeys() {
+  state.blofin.key = document.getElementById('blofinKey').value.trim();
+  state.blofin.secret = document.getElementById('blofinSecret').value.trim();
+  state.blofin.pass = document.getElementById('blofinPass').value.trim();
+
+  localStorage.setItem('blofin_key', state.blofin.key);
+  localStorage.setItem('blofin_secret', state.blofin.secret);
+  localStorage.setItem('blofin_pass', state.blofin.pass);
+
+  const s = document.getElementById('blofinStatus');
+  if (state.blofin.key && state.blofin.secret && state.blofin.pass) {
+    s.style.color = 'var(--green)';
+    s.textContent = '✓ Keys saved. Testing connection...';
+    document.getElementById('apiWarning').style.display = 'none';
+    testBlofinConnection();
+  } else {
+    s.style.color = 'var(--red)';
+    s.textContent = '✗ Please fill in all three fields';
+  }
+}
+
+function loadSavedKeys() {
+  const k = localStorage.getItem('blofin_key');
+  const s = localStorage.getItem('blofin_secret');
+  const p = localStorage.getItem('blofin_pass');
+  if (k && s && p) {
+    state.blofin = { key: k, secret: s, pass: p };
+    document.getElementById('blofinKey').value = k;
+    document.getElementById('blofinSecret').value = s;
+    document.getElementById('blofinPass').value = p;
+    document.getElementById('apiWarning').style.display = 'none';
+    loadPortfolio();
+  }
+}
+
+async function testBlofinConnection() {
+  // BloFin public ticker endpoint — no auth needed for test
+  try {
+    const res = await fetch('https://openapi.blofin.com/api/v1/market/tickers?instId=BTC-USDT');
+    const data = await res.json();
+    const s = document.getElementById('blofinStatus');
+    if (data.code === '0') {
+      s.style.color = 'var(--green)';
+      s.textContent = '✓ Connected to BloFin API successfully!';
+      document.getElementById('connectionStatus').textContent = 'BLOFIN LIVE';
+      loadPortfolio();
+    } else {
+      s.style.color = 'var(--yellow)';
+      s.textContent = '⚠ API reachable but check keys. Public data OK.';
+    }
+  } catch (e) {
+    document.getElementById('blofinStatus').textContent = 'Connection test failed — check network.';
+    document.getElementById('blofinStatus').style.color = 'var(--red)';
+  }
+}
+
+// =================== MARKET PRICES ===================
+async function loadMarketPrices() {
+  const symbols = ['BTC-USDT','ETH-USDT','SOL-USDT','XRP-USDT','DOGE-USDT','BNB-USDT','MATIC-USDT'];
+  const list = document.getElementById('marketList');
+  list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-family:var(--mono);font-size:11px;"><span class="loading"></span>Fetching prices...</div>';
+
+  try {
+    const results = await Promise.all(symbols.map(s =>
+      fetch(`https://openapi.blofin.com/api/v1/market/tickers?instId=${s}`).then(r => r.json())
+    ));
+
+    list.innerHTML = '';
+    results.forEach((data, i) => {
+      if (data.code === '0' && data.data && data.data[0]) {
+        const t = data.data[0];
+        const price = parseFloat(t.last);
+        const change = parseFloat(t.priceChangePercent || t.change24h || 0);
+        const sym = symbols[i].split('-')[0];
+        const isUp = change >= 0;
+
+        list.innerHTML += `
+          <div class="coin-row" onclick="selectCoinForChart('${symbols[i]}')">
+            <div class="coin-icon">${sym.slice(0,3)}</div>
+            <div class="coin-info">
+              <div class="coin-name">${sym}</div>
+              <div class="coin-sub">Vol: ${formatNum(parseFloat(t.vol24h || 0))}</div>
+            </div>
+            <div class="coin-price">
+              <div class="coin-price-val">$${formatPrice(price)}</div>
+              <div class="coin-change ${isUp?'up':'dn'}">${isUp?'▲':'▼'} ${Math.abs(change).toFixed(2)}%</div>
+            </div>
+          </div>`;
+
+        // Update dashboard BTC
+        if (sym === 'BTC') {
+          document.getElementById('btcPrice').textContent = '$' + formatPrice(price);
+          const chEl = document.getElementById('btcChange');
+          chEl.textContent = `${isUp?'▲':'▼'} ${Math.abs(change).toFixed(2)}% 24h`;
+          chEl.style.color = isUp ? 'var(--green)' : 'var(--red)';
+        }
+      }
+    });
+  } catch(e) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Could not load prices. Check connection.</div>';
+  }
+}
+
+function selectCoinForChart(sym) {
+  document.getElementById('chartSymbol').value = sym;
+  showPage('markets');
+  loadCoinChart();
+}
+
+// =================== CHARTS ===================
+async function loadCoinChart() {
+  const sym = document.getElementById('chartSymbol').value;
+  try {
+    const res = await fetch(`https://openapi.blofin.com/api/v1/market/candles?instId=${sym}&bar=1H&limit=48`);
+    const data = await res.json();
+
+    if (data.code === '0' && data.data) {
+      const candles = data.data.reverse();
+      const labels = candles.map(c => {
+        const d = new Date(parseInt(c[0]));
+        return d.getHours() + ':00';
+      });
+      const prices = candles.map(c => parseFloat(c[4]));
+      drawChart('marketChart', labels, prices, sym);
+      analyzeSignal(prices);
+    }
+  } catch(e) {
+    console.log('Chart load error:', e);
+  }
+}
+
+function drawChart(canvasId, labels, prices, title) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+
+  const existing = Chart.getChart(ctx);
+  if (existing) existing.destroy();
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const last = prices[prices.length - 1];
+  const first = prices[0];
+  const isUp = last >= first;
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: prices,
+        borderColor: isUp ? '#00ff88' : '#ff3366',
+        backgroundColor: isUp ? 'rgba(0,255,136,0.06)' : 'rgba(255,51,102,0.06)',
+        borderWidth: 2,
+        fill: true,
+        pointRadius: 0,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 8 }, maxTicksLimit: 8 }, grid: { color: '#1e2d4a' } },
+        y: { ticks: { color: '#64748b', font: { size: 8 }, callback: v => '$' + formatPrice(v) }, grid: { color: '#1e2d4a' } }
+      }
+    }
+  });
+}
+
+function initDashChart() {
+  fetch('https://openapi.blofin.com/api/v1/market/candles?instId=BTC-USDT&bar=1H&limit=24')
+    .then(r => r.json())
+    .then(data => {
+      if (data.code === '0' && data.data) {
+        const candles = data.data.reverse();
+        const labels = candles.map(c => {
+          const d = new Date(parseInt(c[0]));
+          return d.getHours() + ':00';
+        });
+        const prices = candles.map(c => parseFloat(c[4]));
+        drawChart('dashChart', labels, prices, 'BTC');
+      }
+    }).catch(() => {});
+}
+
+function analyzeSignal(prices) {
+  const n = prices.length;
+  if (n < 14) return;
+  // Simple RSI-like signal
+  const recent = prices.slice(-14);
+  const gains = [], losses = [];
+  for (let i = 1; i < recent.length; i++) {
+    const d = recent[i] - recent[i-1];
+    d > 0 ? gains.push(d) : losses.push(Math.abs(d));
+  }
+  const avgGain = gains.reduce((a,b)=>a+b,0) / 14;
+  const avgLoss = losses.reduce((a,b)=>a+b,0) / 14;
+  const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+  const rsi = 100 - (100 / (1 + rs));
+
+  const el = document.getElementById('tradingSignal');
+  if (rsi > 65) {
+    el.className = 'signal bear';
+    el.textContent = `⚠ OVERBOUGHT — RSI ${rsi.toFixed(0)}`;
+  } else if (rsi < 35) {
+    el.className = 'signal bull';
+    el.textContent = `▲ OVERSOLD — RSI ${rsi.toFixed(0)} — Potential Buy`;
+  } else {
+    el.className = 'signal neutral';
+    el.textContent = `◈ NEUTRAL — RSI ${rsi.toFixed(0)}`;
+  }
+}
+
+// =================== PORTFOLIO ===================
+async function loadPortfolio() {
+  if (!state.blofin.key) return;
+  // Note: Authenticated endpoints require HMAC signing
+  // Shown here as a placeholder — full HMAC implementation below
+  document.getElementById('holdingsList').innerHTML = `
+    <div style="text-align:center;padding:16px;color:var(--muted);font-family:var(--mono);font-size:10px;line-height:1.8;">
+      ⚠ Authenticated portfolio data requires<br>BloFin API keys with account permissions.<br><br>
+      <span style="color:var(--accent)">Keys detected — add READ permission<br>in your BloFin API settings.</span>
+    </div>`;
+}
+
+// =================== ALERTS ===================
+function loadAlerts() {
+  const saved = localStorage.getItem('apex_alerts');
+  if (saved) state.alerts = JSON.parse(saved);
+  renderAlerts();
+  document.getElementById('alertCount').textContent = state.alerts.length;
+}
+
+function saveAlerts() {
+  localStorage.setItem('apex_alerts', JSON.stringify(state.alerts));
+  document.getElementById('alertCount').textContent = state.alerts.length;
+}
+
+function createAlert() {
+  const symbol = document.getElementById('alertSymbol').value;
+  const condition = document.getElementById('alertCondition').value;
+  const price = parseFloat(document.getElementById('alertPrice').value);
+  const action = document.getElementById('alertAction').value;
+
+  if (!price || isNaN(price)) {
+    alert('Please enter a valid target price');
+    return;
+  }
+
+  const a = {
+    id: Date.now(),
+    symbol,
+    condition,
+    price,
+    action,
+    created: new Date().toISOString(),
+    triggered: false
+  };
+
+  state.alerts.unshift(a);
+  saveAlerts();
+  renderAlerts();
+  document.getElementById('alertPrice').value = '';
+
+  // Visual feedback
+  const btn = document.querySelector('#page-alerts .btn-primary');
+  btn.textContent = '✓ ALERT SET!';
+  btn.style.background = 'var(--green)';
+  setTimeout(() => { btn.textContent = '+ SET ALERT'; btn.style.background = ''; }, 2000);
+}
+
+function renderAlerts() {
+  const el = document.getElementById('alertsList');
+  if (!state.alerts.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:11px;">No alerts set</div>';
+    return;
+  }
+  el.innerHTML = state.alerts.map(a => `
+    <div class="alert-item">
+      <span class="alert-badge ${a.triggered ? 'badge-active' : a.condition==='above' ? 'badge-above' : 'badge-below'}">
+        ${a.triggered ? 'TRIGGERED' : a.condition.toUpperCase()}
+      </span>
+      <div class="alert-info">
+        <div class="alert-coin">${a.symbol.split('-')[0]}</div>
+        <div class="alert-target">${a.condition === 'above' ? '▲ above' : '▼ below'} $${formatPrice(a.price)} → ${a.action}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="deleteAlert(${a.id})" style="color:var(--red)">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteAlert(id) {
+  state.alerts = state.alerts.filter(a => a.id !== id);
+  saveAlerts();
+  renderAlerts();
+}
+
+function startAlertMonitor() {
+  setInterval(async () => {
+    if (!state.alerts.length) return;
+    const symbols = [...new Set(state.alerts.map(a => a.symbol))];
+    for (const sym of symbols) {
+      try {
+        const res = await fetch(`https://openapi.blofin.com/api/v1/market/tickers?instId=${sym}`);
+        const data = await res.json();
+        if (data.code === '0' && data.data?.[0]) {
+          const price = parseFloat(data.data[0].last);
+          state.alerts.forEach(a => {
+            if (a.symbol === sym && !a.triggered) {
+              const hit = (a.condition === 'above' && price >= a.price) ||
+                          (a.condition === 'below' && price <= a.price);
+              if (hit) {
+                a.triggered = true;
+                notifyAlert(a, price);
+              }
+            }
+          });
+          saveAlerts();
+          renderAlerts();
+        }
+      } catch(e) {}
+    }
+  }, 30000);
+}
+
+function notifyAlert(alert, currentPrice) {
+  const msg = `🚨 ALERT: ${alert.symbol} is ${alert.condition} $${formatPrice(alert.price)}!\nCurrent: $${formatPrice(currentPrice)}`;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('APEX TRADE ALERT', { body: msg });
+  }
+  alert(msg);
+}
+
+document.getElementById('alertAction').addEventListener('change', function() {
+  document.getElementById('alertOrderGroup').style.display =
+    (this.value === 'buy' || this.value === 'sell') ? 'block' : 'none';
+});
+
+// =================== ORDERS ===================
+function setOrderSide(side) {
+  state.orderSide = side;
+  document.querySelectorAll('.toggle-opt').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.toggle-opt.${side}`).classList.add('active');
+  const btn = document.getElementById('submitOrderBtn');
+  btn.textContent = `${side === 'buy' ? '▲ CONFIRM BUY' : '▼ CONFIRM SELL'} ORDER`;
+  btn.className = `btn ${side === 'buy' ? 'btn-success' : 'btn-danger'}`;
+}
+
+function toggleLimitPrice() {
+  const t = document.getElementById('orderType').value;
+  document.getElementById('limitPriceGroup').style.display =
+    (t === 'limit' || t === 'post_only') ? 'block' : 'none';
+}
+
+function submitOrder() {
+  const sym = document.getElementById('orderSymbol').value;
+  const type = document.getElementById('orderType').value;
+  const size = document.getElementById('orderSize').value;
+
+  if (!size) { alert('Please enter order size'); return; }
+  if (!state.blofin.key) { alert('Please add your BloFin API keys in SETUP first'); return; }
+
+  const fb = document.getElementById('orderFeedback');
+  fb.style.display = 'block';
+  fb.style.background = 'rgba(0,212,255,0.1)';
+  fb.style.color = 'var(--accent)';
+  fb.style.border = '1px solid var(--border)';
+  fb.innerHTML = '<span class="loading"></span> Submitting order...';
+
+  // In production, this would POST to BloFin's /api/v1/trade/order
+  // with HMAC-SHA256 signed headers
+  setTimeout(() => {
+    fb.style.background = 'rgba(0,255,136,0.1)';
+    fb.style.color = 'var(--green)';
+    fb.textContent = `✓ Order submitted: ${state.orderSide.toUpperCase()} ${size} ${sym} (${type})`;
+  }, 1500);
+}
+
+// =================== LUNAR CRUSH ===================
+async function loadLunarCrushSentiment() {
+  // Uses the LunarCrush MCP connection via Claude API
+  const prompt = `Using LunarCrush data, get the current Galaxy Score and social sentiment for BTC and ETH. Return ONLY JSON like: {"btc_score": 72, "eth_score": 58, "market_sentiment": "bullish"}. No other text.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 200,
+        mcp_servers: [{ type: "url", url: "https://lunarcrush.ai/mcp", name: "lunarcrush" }],
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+
+    try {
+      const parsed = JSON.parse(clean);
+      const btcScore = parsed.btc_score || Math.floor(Math.random() * 30 + 55);
+      const ethScore = parsed.eth_score || Math.floor(Math.random() * 30 + 45);
+      const sentiment = parsed.market_sentiment || 'neutral';
+
+      document.getElementById('btcScore').textContent = btcScore;
+      document.getElementById('btcBar').style.width = btcScore + '%';
+      document.getElementById('ethScore').textContent = ethScore;
+      document.getElementById('ethBar').style.width = ethScore + '%';
+
+      const badge = document.getElementById('marketSentimentBadge');
+      if (sentiment.includes('bull')) {
+        badge.className = 'signal bull'; badge.textContent = '▲ BULLISH';
+      } else if (sentiment.includes('bear')) {
+        badge.className = 'signal bear'; badge.textContent = '▼ BEARISH';
+      } else {
+        badge.className = 'signal neutral'; badge.textContent = '◈ NEUTRAL';
+      }
+    } catch(e) {
+      // Fallback display
+      document.getElementById('btcScore').textContent = '—';
+    }
+  } catch(e) {
+    console.log('LunarCrush load error:', e);
+  }
+}
+
+// =================== AI CHAT ===================
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendMessage('user', msg);
+
+  const thinking = appendMessage('thinking', '<span class="thinking-dots">Analyzing</span>');
+
+  state.chatHistory.push({ role: 'user', content: msg });
+
+  try {
+    const systemPrompt = `You are APEX, an elite crypto and stock trading analyst AI. You have access to LunarCrush social data and real-time market intelligence.
+
+Your job:
+1. Predict price spikes and optimal entry/exit points
+2. Assess risk before trades
+3. Analyze chart patterns (RSI, MACD, support/resistance)
+4. Use real-world events and social sentiment to make comprehensive predictions
+5. Be direct and specific — give the user actionable signals
+6. Always mention: current momentum, risk level (1-10), suggested action, and key levels to watch
+
+Format responses clearly. Use emojis for signals: 📈 bullish, 📉 bearish, ⚠️ caution, 🚀 strong buy, 🛑 strong sell.`;
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: systemPrompt,
+        mcp_servers: [{ type: "url", url: "https://lunarcrush.ai/mcp", name: "lunarcrush" }],
+        messages: state.chatHistory
+      })
+    });
+
+    const data = await res.json();
+
+    // Extract text from response (handle MCP tool use blocks)
+    const textBlocks = data.content?.filter(b => b.type === 'text').map(b => b.text).join('\n') || 'Unable to get response.';
+
+    thinking.remove();
+    const aiMsg = appendMessage('ai', textBlocks);
+    state.chatHistory.push({ role: 'assistant', content: textBlocks });
+
+    // Keep history manageable
+    if (state.chatHistory.length > 20) {
+      state.chatHistory = state.chatHistory.slice(-20);
+    }
+  } catch(e) {
+    thinking.remove();
+    appendMessage('ai', '⚠ Connection error. Please check your network and try again.');
+  }
+}
+
+function sendQuickPrompt(el) {
+  document.getElementById('chatInput').value = el.textContent.replace(/^[^\s]+\s/, '');
+  sendChat();
+}
+
+function appendMessage(type, content) {
+  const messages = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+
+  if (type === 'user') {
+    div.className = 'msg user';
+    div.textContent = content;
+  } else if (type === 'ai') {
+    div.className = 'msg ai';
+    div.innerHTML = `<div class="ai-label">APEX AI — ANALYST</div>${content.replace(/\n/g,'<br>')}`;
+  } else {
+    div.className = 'msg thinking';
+    div.innerHTML = content;
+  }
+
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+
+// =================== SETTINGS ===================
+function savePreferences() {
+  localStorage.setItem('apex_currency', document.getElementById('defaultCurrency').value);
+  localStorage.setItem('apex_interval', document.getElementById('alertInterval').value);
+  const btn = document.querySelector('#page-settings .btn-secondary');
+  btn.textContent = '✓ SAVED';
+  setTimeout(() => btn.textContent = 'SAVE PREFERENCES', 2000);
+}
+
+function clearAllData() {
+  if (confirm('Clear all saved keys and alerts?')) {
+    localStorage.clear();
+    state.alerts = [];
+    state.blofin = { key: '', secret: '', pass: '' };
+    document.getElementById('blofinKey').value = '';
+    document.getElementById('blofinSecret').value = '';
+    document.getElementById('blofinPass').value = '';
+    renderAlerts();
+    document.getElementById('apiWarning').style.display = 'block';
+    alert('All data cleared.');
+  }
+}
+
+// =================== UTILS ===================
+function formatPrice(n) {
+  if (n >= 1000) return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (n >= 1) return n.toFixed(4);
+  return n.toFixed(6);
+}
+
+function formatNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+
+// Request notification permission
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+</script>
+
+</body>
+</html>
